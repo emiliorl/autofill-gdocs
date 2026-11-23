@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root { --ink:#1b2333; --muted:#6b7385; --line:#dbe0ea; --accent:#2350d6; --accent-soft:#e8eefc; --bg:#f3f5f9; --ok:#0b7a3b; --err:#b42318; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:26px 16px 50px; }
+  h1 { font-size:21px; margin:0 0 16px; }
+  .hide { display:none !important; }
+
+  /* pasos */
+  .steps { display:flex; gap:6px; margin:0 0 16px; padding:0; list-style:none; }
+  .steps li { flex:1; }
+  .steps button { width:100%; background:none; border:0; border-top:4px solid var(--line); padding:8px 2px 0; text-align:left; font:inherit; font-size:13px; color:var(--muted); cursor:pointer; }
+  .steps li.done button { border-color:#9db4f2; color:var(--ink); }
+  .steps li.on button { border-color:var(--accent); color:var(--accent); font-weight:600; }
+  .steps b { display:block; font-size:11px; letter-spacing:.04em; text-transform:uppercase; font-weight:600; }
+
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px 20px 8px; box-shadow:0 1px 2px rgba(20,30,60,.04); }
+  .card h2 { font-size:17px; margin:0 0 2px; } .card .lead { color:var(--muted); margin:0 0 16px; }
+  .row { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:0 16px; }
+  .f { margin:0 0 14px; }
+  .f > label { display:block; font-size:13px; font-weight:600; margin-bottom:4px; }
+  .f > label small { font-weight:400; color:var(--muted); }
+  input:not([type=checkbox]), select, textarea { width:100%; padding:9px 10px; font:inherit; border:1px solid var(--line); border-radius:8px; background:#fff; color:inherit; }
+  input:focus, select:focus, textarea:focus { outline:2px solid #bccbf6; border-color:var(--accent); }
+  textarea { min-height:96px; resize:vertical; }
+  .words { display:flex; align-items:center; gap:8px; margin-top:5px; font-size:12.5px; color:var(--muted); }
+  .words input { border:0; border-bottom:1px dashed var(--line); border-radius:0; padding:2px 0; font-size:13px; color:var(--ink); background:transparent; flex:1; }
+  .words input:focus { outline:0; border-bottom:1px solid var(--accent); }
+  .sub { border-left:3px solid var(--accent-soft); padding-left:12px; margin:-4px 0 14px; }
+
+  /* tarjetas de contrato */
+  .picks { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; margin-bottom:14px; }
+  .pick { display:block; position:relative; border:2px solid var(--line); border-radius:12px; padding:16px 16px 16px 46px; cursor:pointer; background:#fff; }
+  .pick input { position:absolute; left:16px; top:18px; width:18px; height:18px; }
+  .pick b { display:block; } .pick span { color:var(--muted); font-size:13px; }
+  .pick:has(input:checked) { border-color:var(--accent); background:var(--accent-soft); }
+
+  /* navegación */
+  .nav { display:flex; justify-content:space-between; align-items:center; margin-top:16px; }
+  button.btn { border:0; border-radius:8px; padding:10px 20px; font:inherit; font-weight:600; cursor:pointer; background:var(--accent); color:#fff; }
+  button.btn.ghost { background:none; color:var(--muted); border:1px solid var(--line); }
+  button.btn:disabled { opacity:.55; cursor:wait; }
+
+  /* resumen */
+  dl.sum { display:grid; grid-template-columns:150px 1fr; gap:6px 14px; margin:0 0 14px; }
+  dl.sum dt { color:var(--muted); font-size:13px; } dl.sum dd { margin:0; word-break:break-word; }
+  details { margin:0 0 14px; } summary { cursor:pointer; color:var(--muted); font-size:13px; }
+  #preview { font:12px/1.5 ui-monospace,Consolas,monospace; background:var(--bg); border-radius:8px; padding:10px 12px; margin-top:8px; white-space:pre-wrap; }
+
+  .box { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin-top:16px; }
+  .box.ok { border-color:#9bd5b3; } .box.err { border-color:#f0a8a2; color:var(--err); } .warn { color:#92580a; margin-top:8px; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Generador de contratos</h1>
+  <div id="setup" class="box err hide" style="margin:0 0 14px"></div>
+
+  <ol class="steps" id="steps"></ol>
+
+  <form id="f" autocomplete="off" novalidate>
+
+    <!-- 1 · CONTRATOS -->
+    <section class="card step" data-title="Contratos">
+      <h2>¿Qué contratos necesitas?</h2>
+      <p class="lead">Puedes generar uno o los dos.</p>
+      <div class="picks">
+        <label class="pick"><input type="checkbox" id="c_trabajo" checked><b>Contrato Individual de Trabajo</b><span>Puesto, salario, bonificación, atribuciones</span></label>
+        <label class="pick"><input type="checkbox" id="c_confidencialidad" checked><b>Contrato de Confidencialidad</b><span>Incluye acta de legalización del notario</span></label>
+      </div>
+    </section>
+
+    <!-- 2 · PERSONA -->
+    <section class="card step hide" data-title="Persona">
+      <h2>Datos de la persona</h2>
+      <p class="lead">Tal como aparecen en el DPI.</p>
+      <div class="f"><label for="nombre">Nombre completo</label><input id="nombre" required></div>
+      <div class="row">
+        <div class="f"><label for="dpi">DPI / CUI <small>13 dígitos</small></label>
+          <input id="dpi" inputmode="numeric" required placeholder="0000 00000 0000" pattern="\d{4} \d{5} \d{4}" title="13 dígitos">
+          <div class="words"><span>en letras</span><input id="dpi_letras" required aria-label="DPI en letras"></div></div>
+        <div class="f"><label for="edad">Edad</label>
+          <input id="edad" type="number" min="16" max="99" required>
+          <div class="words"><span>en letras</span><input id="edad_letras" required aria-label="Edad en letras"></div></div>
+      </div>
+      <div class="row">
+        <div class="f"><label for="sexo">Género</label>
+          <select id="sexo"><option value="femenino">Femenino</option><option value="masculino">Masculino</option><option value="no binario">No binario</option></select></div>
+        <div class="f hide" id="g_conc"><label for="conc">Concordancia en el texto <small>(el contrato debe usar una forma)</small></label>
+          <select id="conc"><option value="masculino">Masculina (el trabajador)</option><option value="femenino">Femenina (la trabajadora)</option></select></div>
+        <div class="f"><label for="estado">Estado civil</label>
+          <select id="estado"><option>soltero</option><option>casado</option><option>divorciado</option><option>viudo</option><option>unido</option></select></div>
+        <div class="f"><label for="nacionalidad">Nacionalidad</label>
+          <select id="nacionalidad"></select>
+          <input id="nacionalidad_otra" class="hide" placeholder="Escribe la nacionalidad" style="margin-top:6px"></div>
+      </div>
+      <div class="f"><label for="profesion">Profesión u ocupación</label><input id="profesion" required placeholder="ej. estudiante de arquitectura"></div>
+      <div class="f"><label for="direccion">Dirección de residencia</label><input id="direccion" required placeholder="Calle, zona, colonia…"></div>
+    </section>
+
+    <!-- 3 · FECHAS Y PUESTO -->
+    <section class="card step hide" data-title="Fechas y puesto">
+      <h2>Fechas y puesto</h2>
+      <p class="lead">&nbsp;</p>
+      <div class="row">
+        <div class="f"><label for="f_firma">Fecha de firma</label><input id="f_firma" type="date" required></div>
+        <div class="f"><label for="f_inicio">Inicio de la relación laboral</label><input id="f_inicio" type="date" required></div>
+        <div class="f" id="g_legal"><label for="f_legal">Legalización (notario) <small>vacío = fecha de firma</small></label><input id="f_legal" type="date"></div>
+      </div>
+
+      <div id="g_rol" class="sub">
+        <div class="row">
+          <div class="f"><label for="rol">Rol en el contrato de confidencialidad</label>
+            <select id="rol"><option value="tecnico">El Técnico</option><option value="profesional">El Profesional</option><option value="otro">Otro (escribirlo)…</option></select></div>
+          <div class="f hide" id="g_rol_otro"><label for="rol_otro">Rol <small>según el género, ej. CONSULTORA</small></label><input id="rol_otro"></div>
+          <div class="f hide" id="g_rol_serv"><label for="rol_serv">Tipo de servicios</label><input id="rol_serv" value="profesionales"></div>
+        </div>
+      </div>
+
+      <div id="g_trabajo" class="sub">
+        <div class="f"><label for="puesto">Puesto <small>en inglés y español</small></label>
+          <input id="puesto" required placeholder="Interior Designer / Diseñador de Interiores"></div>
+        <div class="f"><label for="funciones">Atribuciones <small>una por línea: A. …</small></label><textarea id="funciones" required></textarea></div>
+        <div class="row">
+          <div class="f"><label for="salario">Salario mensual (Q)</label><input id="salario" type="number" min="0" step="1" value="4500" required>
+            <div class="words"><span>en letras</span><input id="salario_letras" required aria-label="Salario en letras"></div></div>
+          <div class="f"><label for="bonif">Bonificación incentivo (Q)</label><input id="bonif" type="number" min="0" step="1" value="250" required>
+            <div class="words"><span>en letras</span><input id="bonif_letras" required aria-label="Bonificación en letras"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 · REVISAR -->
+    <section class="card step hide" data-title="Revisar">
+      <h2>Revisa y genera</h2>
+      <p class="lead">Se creará una carpeta con el nombre y la fecha de firma.</p>
+      <dl class="sum" id="sum"></dl>
+      <label class="pick" style="margin:0 0 14px;padding:12px 14px 12px 44px"><input type="checkbox" id="pdf" checked style="top:14px"><b>Guardar también en PDF</b><span>Se guarda junto al documento de Google, que sigue editable</span></label>
+      <details><summary>Ver todos los textos que se insertan</summary><div id="preview"></div></details>
+    </section>
+
+    <div class="nav">
+      <button type="button" class="btn ghost" id="back">Atrás</button>
+      <button type="button" class="btn" id="next">Siguiente</button>
+      <button type="submit" class="btn hide" id="go">Generar contratos</button>
+    </div>
+  </form>
+  <div id="msg"></div>
+</main>
+
+<script>
+/* ------------------------------------------------ números y fechas en letras */
+const U = ['cero','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince',
+  'dieciséis','diecisiete','dieciocho','diecinueve','veinte','veintiuno','veintidós','veintitrés','veinticuatro','veinticinco',
+  'veintiséis','veintisiete','veintiocho','veintinueve'];
+const TENS = ['','','','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa'];
+const HUND = ['','ciento','doscientos','trescientos','cuatrocientos','quinientos','seiscientos','setecientos','ochocientos','novecientos'];
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+const apoc = s => s.replace(/veintiuno$/, 'veintiún').replace(/uno$/, 'un');
+
+function words(n) {              // 0 … 999,999,999
+  if (n < 30) return U[n];
+  if (n < 100) return TENS[Math.floor(n / 10)] + (n % 10 ? ' y ' + U[n % 10] : '');
+  if (n < 1000) return n === 100 ? 'cien' : HUND[Math.floor(n / 100)] + (n % 100 ? ' ' + words(n % 100) : '');
+  if (n < 1e6) {
+    const t = Math.floor(n / 1000), r = n % 1000;
+    return (t === 1 ? 'mil' : apoc(words(t)) + ' mil') + (r ? ' ' + words(r) : '');
+  }
+  const m = Math.floor(n / 1e6), r = n % 1e6;
+  return (m === 1 ? 'un millón' : apoc(words(m)) + ' millones') + (r ? ' ' + words(r) : '');
+}
+
+// DPI 4-5-4 como en los contratos: "tres mil trescientos, cuarenta y ocho mil …, un mil doscientos uno".
+// Un grupo que empieza con 0 se deletrea dígito por dígito ("cero uno cero uno").
+function dpiWords(digits) {
+  const g = [digits.slice(0, 4), digits.slice(4, 9), digits.slice(9, 13)];
+  return g.map(x => {
+    if (x[0] === '0') return x.split('').map(d => U[+d]).join(' ');
+    const n = +x, s = words(n);
+    return n >= 1000 && n < 2000 ? s.replace(/^mil/, 'un mil') : s;
+  }).join(', ');
+}
+const dpiFmt = d => d.slice(0, 4) + ' ' + d.slice(4, 9) + ' ' + d.slice(9, 13);
+
+function parseDate(v) { const [y, m, d] = v.split('-').map(Number); return { y, m, d }; }
+const fechaFirma = D => `${D.d} de ${MESES[D.m - 1]} del año ${words(D.y)}`;
+const fechaTexto = D => `${words(D.d)} de ${MESES[D.m - 1]} del ${words(D.y)}`;
+const money = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const REP_NACIMIENTO = { y: 1975, m: 5, d: 16 };   // Mauricio José Barillas Moreno, representante legal
+
+// Masculino → femenino (soltero→soltera, francés→francesa, alemán→alemana, español→española, mongol→mongola).
+// Lo que ya termina en -a, -e, -í, -ú… no cambia (estadounidense, belga, iraní).
+function femenino(s) {
+  s = s.trim();
+  return s.replace(/o$/i, 'a').replace(/és$/i, 'esa').replace(/án$/i, 'ana').replace(/ón$/i, 'ona')
+          .replace(/ol$/i, 'ola').replace(/ís$/i, 'isa');
+}
+
+const NACIONALIDADES = ['afgano','albanés','alemán','andorrano','angoleño','antiguano','argelino','argentino','armenio','australiano',
+  'austriaco','azerbaiyano','bahameño','bangladesí','barbadense','bareiní','belga','beliceño','beninés','bielorruso','birmano','boliviano',
+  'bosnio','botsuano','brasileño','británico','bruneano','búlgaro','burkinés','burundés','butanés','caboverdiano','camboyano','camerunés',
+  'canadiense','catarí','centroafricano','chadiano','checo','chileno','chino','chipriota','colombiano','comorense','congoleño','costarricense',
+  'croata','cubano','danés','dominicano','dominiqués','ecuatoguineano','ecuatoriano','egipcio','emiratí','eritreo','eslovaco','esloveno',
+  'español','estadounidense','estonio','esuatiniano','etíope','filipino','finlandés','fiyiano','francés','gabonés','gambiano','georgiano',
+  'ghanés','granadino','griego','guatemalteco','guineano','guyanés','haitiano','hondureño','húngaro','indio','indonesio','iraquí','iraní',
+  'irlandés','islandés','israelí','italiano','jamaiquino','japonés','jordano','kazajo','keniano','kirguís','kiribatiano','kuwaití',
+  'laosiano','lesotense','letón','libanés','liberiano','libio','liechtensteiniano','lituano','luxemburgués','macedonio','malasio','malauí',
+  'maldivo','maliense','maltés','marfileño','marroquí','marshalés','mauriciano','mauritano','mexicano','micronesio','moldavo','monegasco',
+  'mongol','montenegrino','mozambiqueño','namibio','nauruano','neerlandés','nepalí','neozelandés','nicaragüense','nigeriano','nigerino',
+  'norcoreano','noruego','omaní','pakistaní','palauano','palestino','panameño','papú','paraguayo','peruano','polaco','portugués','ruandés',
+  'rumano','ruso','salvadoreño','samoano','sancristobaleño','sanmarinense','santalucense','santotomense','sanvicentino','saudí','senegalés',
+  'serbio','seychellense','sierraleonés','singapurense','sirio','somalí','esrilanqués','sudafricano','sudanés','sursudanés','surcoreano',
+  'sueco','suizo','surinamés','tailandés','tanzano','tayiko','timorense','togolés','tongano','trinitense','tunecino','turcomano','turco',
+  'tuvaluano','ucraniano','ugandés','uruguayo','uzbeko','vanuatuense','venezolano','vietnamita','yemení','yibutiano','zambiano','zimbabuense'];
+
+/* ------------------------------------------------ utilidades de UI */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const cap = s => s.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
+
+// mostrar/ocultar un bloque; los campos ocultos se deshabilitan para que no bloqueen la validación
+function show(el, on) {
+  el.classList.toggle('hide', !on);
+  el.querySelectorAll('input,select,textarea').forEach(i => { i.disabled = !on; });
+}
+
+NACIONALIDADES.forEach(n => $('nacionalidad').add(new Option(cap(n), n, n === 'guatemalteco', n === 'guatemalteco')));
+$('nacionalidad').add(new Option('Otra (escribirla)…', '__otra'));
+
+// campo "en letras" que se rellena solo mientras el usuario no lo toque
+function auto(src, dst, fn) {
+  const upd = () => {
+    const d = $(dst);
+    if (!d.dataset.manual || !d.value) { const v = fn($(src).value); d.value = v || ''; d.dataset.manual = ''; }
+    refresh();
+  };
+  $(src).addEventListener('input', upd);
+  $(dst).addEventListener('input', () => { $(dst).dataset.manual = '1'; refresh(); });
+  return upd;
+}
+const num = v => { const n = parseInt(String(v).replace(/\D/g, ''), 10); return isNaN(n) ? '' : n; };
+const uEdad = auto('edad', 'edad_letras', v => num(v) !== '' && apoc(words(num(v))));
+const uSal  = auto('salario', 'salario_letras', v => num(v) !== '' && words(num(v)));
+const uBon  = auto('bonif', 'bonif_letras', v => num(v) !== '' && words(num(v)));
+const uDpi  = auto('dpi', 'dpi_letras', v => { const d = v.replace(/\D/g, ''); return d.length === 13 && dpiWords(d); });
+$('dpi').addEventListener('input', () => {
+  const d = $('dpi').value.replace(/\D/g, '').slice(0, 13);
+  $('dpi').value = d.length > 4 ? dpiFmt(d).trim() : d;
+});
+
+/* ------------------------------------------------ lógica del formulario */
+function selected() { return ['trabajo', 'confidencialidad'].filter(k => $('c_' + k).checked); }
+
+function toggles() {
+  const s = selected(), conf = s.includes('confidencialidad'), trab = s.includes('trabajo');
+  show($('g_trabajo'), trab);
+  show($('g_legal'), conf);
+  show($('g_rol'), conf);
+  const otro = conf && $('rol').value === 'otro';
+  show($('g_rol_otro'), otro); show($('g_rol_serv'), otro);
+  $('rol_otro').required = otro;
+  show($('g_conc'), $('sexo').value === 'no binario');
+  const na = $('nacionalidad').value === '__otra';
+  show($('nacionalidad_otra'), na); $('nacionalidad_otra').required = na;
+  refresh();
+}
+
+function values() {
+  const sexo = $('sexo').value;
+  const isF = (sexo === 'no binario' ? $('conc').value : sexo) === 'femenino';
+  const g = s => isF ? femenino(s) : s.trim();
+  const F = $('f_firma').value ? parseDate($('f_firma').value) : null;
+  const I = $('f_inicio').value ? parseDate($('f_inicio').value) : null;
+  const L = $('f_legal').value ? parseDate($('f_legal').value) : F;
+  const nac = $('nacionalidad').value === '__otra' ? $('nacionalidad_otra').value : $('nacionalidad').value;
+
+  let noun, serv;
+  if ($('rol').value === 'tecnico')          { noun = isF ? 'TÉCNICA' : 'TÉCNICO'; serv = 'técnicos'; }
+  else if ($('rol').value === 'profesional') { noun = 'PROFESIONAL'; serv = 'profesionales'; }
+  else { noun = $('rol_otro').value.trim().toUpperCase(); serv = $('rol_serv').value.trim() || 'profesionales'; }
+
+  const v = {
+    NOMBRE: $('nombre').value.trim().replace(/\s+/g, ' ').toUpperCase(),
+    EDAD_NUM: $('edad').value,
+    EDAD_LETRAS: $('edad_letras').value.trim(),
+    ESTADO_CIVIL: g($('estado').value),
+    NACIONALIDAD: g(nac),
+    SEXO: sexo,
+    EL_LA_TRABAJADOR: isF ? 'la trabajadora' : 'el trabajador',
+    TITULO: noun ? (isF ? 'LA ' : 'EL ') + noun : '',
+    TIPO_SERVICIO: serv,
+    PROFESION: $('profesion').value.trim(),
+    DIRECCION: $('direccion').value.trim(),
+    DPI_NUM: $('dpi').value.trim(),
+    DPI_LETRAS: $('dpi_letras').value.trim(),
+    PUESTO: $('puesto').value.trim(),
+    FUNCIONES: $('funciones').value.trim(),
+    SALARIO_NUM: money(num($('salario').value) || 0),
+    SALARIO_LETRAS: $('salario_letras').value.trim(),
+    BONIF_NUM: money(num($('bonif').value) || 0),
+    BONIF_LETRAS: $('bonif_letras').value.trim(),
+  };
+  if (F) {
+    v.FECHA_FIRMA = fechaFirma(F);
+    const rep = F.y - REP_NACIMIENTO.y - ((F.m < REP_NACIMIENTO.m || (F.m === REP_NACIMIENTO.m && F.d < REP_NACIMIENTO.d)) ? 1 : 0);
+    v.REP_EDAD_NUM = String(rep);
+    v.REP_EDAD_LETRAS = apoc(words(rep));
+  }
+  if (L) v.FECHA_LEGALIZACION = fechaFirma(L);
+  if (I) {
+    v.FECHA_INICIO_TEXTO = fechaTexto(I);
+    v.INICIO_DIA_LETRAS = words(I.d);
+    v.INICIO_DIA_NUM = String(I.d);
+    v.INICIO_MES = MESES[I.m - 1];
+    v.INICIO_ANIO_LETRAS = words(I.y);
+    v.INICIO_ANIO_NUM = I.y.toLocaleString('en-US');
+  }
+  return v;
+}
+
+const REQUIRED = {
+  confidencialidad: ['NOMBRE','EDAD_NUM','EDAD_LETRAS','ESTADO_CIVIL','NACIONALIDAD','PROFESION','DIRECCION','DPI_NUM','DPI_LETRAS','FECHA_FIRMA','FECHA_INICIO_TEXTO','FECHA_LEGALIZACION','TITULO','TIPO_SERVICIO','REP_EDAD_NUM'],
+  trabajo: ['NOMBRE','EDAD_LETRAS','ESTADO_CIVIL','NACIONALIDAD','SEXO','PROFESION','DIRECCION','DPI_NUM','DPI_LETRAS','FECHA_FIRMA','INICIO_DIA_LETRAS','INICIO_MES','PUESTO','FUNCIONES','SALARIO_NUM','SALARIO_LETRAS','BONIF_NUM','BONIF_LETRAS','REP_EDAD_LETRAS'],
+};
+const NOMBRES = { confidencialidad: 'Contrato de Confidencialidad', trabajo: 'Contrato Individual de Trabajo' };
+
+function refresh() {
+  const v = values();
+  $('preview').textContent = Object.entries(v).map(([k, x]) => `{{${k}}} = ${x}`).join('\n');
+  const rows = [
+    ['Contratos', selected().map(k => NOMBRES[k]).join(' · ')],
+    ['Nombre', v.NOMBRE], ['DPI', v.DPI_NUM], ['Edad', v.EDAD_NUM && `${v.EDAD_NUM} años`],
+    ['Género · estado', `${v.SEXO} · ${v.ESTADO_CIVIL} · ${v.NACIONALIDAD}`],
+    ['Profesión', v.PROFESION], ['Dirección', v.DIRECCION],
+    ['Firma', v.FECHA_FIRMA], ['Inicio', v.FECHA_INICIO_TEXTO],
+  ];
+  if (selected().includes('confidencialidad')) rows.push(['Rol', v.TITULO]);
+  if (selected().includes('trabajo')) rows.push(['Puesto', v.PUESTO], ['Salario', `Q. ${v.SALARIO_NUM} + bonificación Q. ${v.BONIF_NUM}`]);
+  $('sum').innerHTML = rows.map(([k, x]) => `<dt>${k}</dt><dd>${esc(x || '—')}</dd>`).join('');
+}
+
+/* ------------------------------------------------ pasos */
+const sections = [...document.querySelectorAll('.step')];
+let cur = 0;
+$('steps').innerHTML = sections.map((s, i) =>
+  `<li><button type="button" data-i="${i}"><b>Paso ${i + 1}</b>${s.dataset.title}</button></li>`).join('');
+
+function validStep(i) {
+  const fields = [...sections[i].querySelectorAll('input,select,textarea')].filter(e => !e.disabled);
+  if (i === 0 && !selected().length) { showMsg('Selecciona al menos un contrato.', 'err'); return false; }
+  for (const f of fields) if (!f.checkValidity()) { f.reportValidity(); return false; }
+  return true;
+}
+function go(i) {
+  cur = Math.max(0, Math.min(sections.length - 1, i));
+  sections.forEach((s, k) => s.classList.toggle('hide', k !== cur));
+  [...$('steps').children].forEach((li, k) => { li.classList.toggle('on', k === cur); li.classList.toggle('done', k < cur); });
+  $('back').style.visibility = cur ? 'visible' : 'hidden';
+  $('next').classList.toggle('hide', cur === sections.length - 1);
+  $('go').classList.toggle('hide', cur !== sections.length - 1);
+  $('msg').innerHTML = ''; refresh(); window.scrollTo(0, 0);
+}
+$('next').onclick = () => { if (validStep(cur)) go(cur + 1); };
+$('back').onclick = () => go(cur - 1);
+$('steps').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const t = +b.dataset.i;
+  for (let k = cur; k < t; k++) { if (!validStep(k)) { go(k); validStep(k); return; } go(k + 1); }
+  go(t);
+};
+
+document.querySelectorAll('input,select,textarea').forEach(e => { e.addEventListener('input', toggles); e.addEventListener('change', toggles); });
+
+/* ------------------------------------------------ enviar */
+function showMsg(html, cls) { $('msg').innerHTML = `<div class="box ${cls || ''}">${html}</div>`; }
+
+function init() {
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+  $('f_firma').value = today; $('f_inicio').value = today;
+  ['edad_letras', 'salario_letras', 'bonif_letras', 'dpi_letras'].forEach(i => $(i).dataset.manual = '');
+  uSal(); uBon(); toggles(); go(0);
+}
+// el inicio de la relación sigue a la fecha de firma hasta que se cambie a mano
+$('f_inicio').addEventListener('input', () => { $('f_inicio').dataset.manual = '1'; });
+$('f_firma').addEventListener('input', () => { if (!$('f_inicio').dataset.manual) $('f_inicio').value = $('f_firma').value; });
+
+$('f').addEventListener('submit', e => {
+  e.preventDefault();
+  for (let i = 0; i < sections.length - 1; i++) if (!validStep(i)) { go(i); validStep(i); return; }
+  const contracts = selected(), v = values();
+  const missing = [...new Set(contracts.flatMap(c => REQUIRED[c]).filter(k => !v[k]))];
+  if (missing.length) return showMsg('Faltan datos: ' + missing.map(esc).join(', '), 'err');
+
+  $('go').disabled = true; showMsg('Generando…');
+  google.script.run
+    .withSuccessHandler(r => {
+      $('go').disabled = false;
+      showMsg(
+        `<b>Listo.</b> Carpeta: <a href="${esc(r.folderUrl)}" target="_blank">${esc(r.folderName)}</a><ul>` +
+        r.files.map(f => `<li>${esc(f.label)}: <a href="${esc(f.url)}" target="_blank">Documento (editable)</a>` +
+          (f.pdfUrl ? ` · <a href="${esc(f.pdfUrl)}" target="_blank">PDF</a>` : '') + '</li>').join('') + '</ul>' +
+        (r.warnings.length ? `<div class="warn">${r.warnings.map(esc).join('<br>')}</div>` : '') +
+        '<p><button type="button" class="btn ghost" id="again">Generar para otra persona</button></p>', 'ok');
+      $('again').onclick = () => { $('f').reset(); init(); };
+    })
+    .withFailureHandler(err => { $('go').disabled = false; showMsg(esc(err.message || err), 'err'); })
+    .generateContracts({ folderName: `${cap(v.NOMBRE)} - ${$('f_firma').value}`, contracts, values: v, pdf: $('pdf').checked });
+});
+
+google.script.run.withSuccessHandler(st => {
+  const bad = Object.keys(st).filter(k => !st[k]);
+  if (bad.length) {
+    $('setup').classList.remove('hide');
+    $('setup').innerHTML = 'Falta configurar la plantilla de: <b>' + bad.join(', ') + '</b> (ver README, paso 2).';
+  }
+}).getSetupStatus();
+
+init();
+</script>
+</body>
+</html>
